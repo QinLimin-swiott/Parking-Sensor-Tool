@@ -13,6 +13,9 @@
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3059/3059997.png" />
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Babel Standalone，用于在浏览器中实时编译 TSX/JSX 代码 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
       body {
@@ -30,17 +33,20 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+    "react/": "https://esm.sh/react@18.2.0/"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <!-- 关键修改：使用 text/babel 类型，并指定 data-presets 为 react,typescript -->
+    <!-- 这告诉 Babel 获取该文件并将其编译为浏览器可执行的 JS -->
+    <script type="text/babel" data-type="module" data-presets="react,typescript" src="./index.tsx"></script>
+    
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
