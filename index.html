@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0f172a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3059/3059997.png" />
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,11 +22,8 @@
         -webkit-tap-highlight-color: transparent;
         user-select: none;
       }
-      /* 禁止移动端长按弹出菜单 */
       * { -webkit-touch-callout: none; }
       input { user-select: text; }
-      
-      /* 适配刘海屏 */
       .safe-top { padding-top: env(safe-area-inset-top); }
       .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
     </style>
@@ -43,12 +40,11 @@
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
     <script>
-      // 注册 Service Worker 以支持 PWA 安装
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+          navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
         });
       }
     </script>
