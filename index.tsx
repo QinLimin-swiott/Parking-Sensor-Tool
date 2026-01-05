@@ -32,7 +32,9 @@ import {
   Save,
   Search,
   Hash,
-  Rss
+  Rss,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 // --- Types & Constants ---
@@ -76,6 +78,7 @@ interface NbiotConfig {
   mqttPass: string;
   mqttClean: string;
   mqttKeepalive: string;
+  mqttSsl: string;
   status: string;
   imei: string;
   imsi: string;
@@ -135,6 +138,7 @@ const getEventTypeText = (type: number) => {
 
 const App = () => {
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [device, setDevice] = useState<any | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -163,7 +167,7 @@ const App = () => {
   });
 
   const [nbiot, setNbiot] = useState<NbiotConfig>({
-    apn: '', mqttHost: '', mqttPort: '', mqttUser: '', mqttPass: '', mqttClean: '', mqttKeepalive: '',
+    apn: '', mqttHost: '', mqttPort: '', mqttUser: '', mqttPass: '', mqttClean: '', mqttKeepalive: '', mqttSsl: '0',
     status: 'Unknown', imei: '', imsi: '', ccid: '', band: '', operator: '', rssi: '', snr: ''
   });
 
@@ -278,8 +282,13 @@ const App = () => {
       if (parts.length >= 6) {
         setNbiot(prev => ({
           ...prev, 
-          mqttHost: parts[0], mqttPort: parts[1], mqttUser: parts[2],
-          mqttPass: parts[3], mqttClean: parts[4], mqttKeepalive: parts[5]
+          mqttHost: parts[0], 
+          mqttPort: parts[1], 
+          mqttUser: parts[2],
+          mqttPass: parts[3], 
+          mqttClean: parts[4], 
+          mqttKeepalive: parts[5],
+          mqttSsl: parts[6] || '0'
         }));
       }
     }
@@ -366,6 +375,7 @@ const App = () => {
   const connectDevice = async () => {
     vibrate();
     setErrorMsg(null);
+    setIsConnecting(false);
     try {
       if (!(navigator as any).bluetooth) throw new Error("Bluetooth not supported.");
       addLog('info', 'Scanning for sensors...');
@@ -381,9 +391,13 @@ const App = () => {
       if (!isValidDeviceName(device.name)) {
         throw new Error(`Invalid device ID: "${device.name}"`);
       }
+      
+      // 用户选择了设备，开始连接过程
+      setIsConnecting(true);
       setDevice(device);
       device.addEventListener('gattserverdisconnected', onDisconnected);
       addLog('info', `Connecting...`);
+      
       const server = await device.gatt?.connect();
       serverRef.current = server;
       const service = await server.getPrimaryService(SERVICE_UUID);
@@ -399,7 +413,9 @@ const App = () => {
           handleATResponse(line);
         });
       });
+      
       setIsConnected(true);
+      setIsConnecting(false);
       setIsDemoMode(false);
       vibrate('success');
       await writeChar.writeValueWithoutResponse(strToBytes("SWIOTT"));
@@ -416,6 +432,7 @@ const App = () => {
       }, 2000);
     } catch (error: any) {
       setErrorMsg(error.message || "Connection failed");
+      setIsConnecting(false);
       vibrate('error');
     }
   };
@@ -434,6 +451,7 @@ const App = () => {
 
   const onDisconnected = () => {
     setIsConnected(false);
+    setIsConnecting(false);
     setIsDemoMode(false);
     setDevice(null);
     writeCharRef.current = null;
@@ -600,8 +618,15 @@ const App = () => {
       </div>
 
       <div className="space-y-3">
-        <div className="p-3 bg-slate-900/30 rounded-lg border border-slate-700/30 space-y-2">
-          <label className="text-[9px] font-black text-slate-500 uppercase tracking-wide">MQTT Broker</label>
+        <div className="p-3 bg-slate-900/30 rounded-lg border border-slate-700/30 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-wide">MQTT Broker</label>
+            <div className="flex items-center gap-2">
+              <span className={`text-[8px] font-bold uppercase ${nbiot.mqttSsl === '1' ? 'text-blue-400' : 'text-slate-500'}`}>SSL</span>
+              {nbiot.mqttSsl === '1' ? <Lock className="w-2.5 h-2.5 text-blue-400" /> : <Unlock className="w-2.5 h-2.5 text-slate-500" />}
+            </div>
+          </div>
+          
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
               <input placeholder="Host" value={nbiot.mqttHost} onChange={e => setNbiot({...nbiot, mqttHost: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-md px-2.5 py-1.5 text-[10px]" />
@@ -610,10 +635,29 @@ const App = () => {
             <input placeholder="Keepalive" value={nbiot.mqttKeepalive} onChange={e => setNbiot({...nbiot, mqttKeepalive: e.target.value})} className="bg-slate-900 border border-slate-700 text-white rounded-md px-2.5 py-1.5 text-[10px]" />
             <input placeholder="User" value={nbiot.mqttUser} onChange={e => setNbiot({...nbiot, mqttUser: e.target.value})} className="bg-slate-900 border border-slate-700 text-white rounded-md px-2.5 py-1.5 text-[10px]" />
             <input placeholder="Pass" type="password" value={nbiot.mqttPass} onChange={e => setNbiot({...nbiot, mqttPass: e.target.value})} className="bg-slate-900 border border-slate-700 text-white rounded-md px-2.5 py-1.5 text-[10px]" />
+            
+            <div className="col-span-2 space-y-1">
+              <label className="text-[8px] font-black text-slate-500 uppercase">SSL Connection</label>
+              <div className="flex bg-slate-900 p-0.5 rounded-md border border-slate-700">
+                <button 
+                  onClick={() => setNbiot({...nbiot, mqttSsl: '0'})}
+                  className={`flex-1 py-1 text-[8px] font-bold rounded transition-all ${nbiot.mqttSsl === '0' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}
+                >
+                  DISABLED
+                </button>
+                <button 
+                  onClick={() => setNbiot({...nbiot, mqttSsl: '1'})}
+                  className={`flex-1 py-1 text-[8px] font-bold rounded transition-all ${nbiot.mqttSsl === '1' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
+                >
+                  ENABLED
+                </button>
+              </div>
+            </div>
           </div>
+          
           <button 
-            onClick={() => sendATCommand(`AT+NBMQTT=${nbiot.mqttHost},${nbiot.mqttPort},${nbiot.mqttUser},${nbiot.mqttPass},${nbiot.mqttClean || '0'},${nbiot.mqttKeepalive || '120'}`)} 
-            className="w-full bg-blue-600 text-white py-2 rounded-md font-bold text-[10px] uppercase transition-all active:scale-[0.98]"
+            onClick={() => sendATCommand(`AT+NBMQTT=${nbiot.mqttHost},${nbiot.mqttPort},${nbiot.mqttUser},${nbiot.mqttPass},${nbiot.mqttClean || '0'},${nbiot.mqttKeepalive || '120'},${nbiot.mqttSsl || '0'}`)} 
+            className="w-full bg-blue-600 text-white py-2 rounded-md font-bold text-[10px] uppercase transition-all active:scale-[0.98] shadow-lg border border-blue-400/20"
           >
             Update MQTT
           </button>
@@ -638,7 +682,7 @@ const App = () => {
           <div className="relative mb-10">
             <div className="w-32 h-32 rounded-lg bg-blue-600/10 flex items-center justify-center border border-blue-500/10">
                <div className="w-20 h-20 rounded-md bg-blue-500/20 flex items-center justify-center">
-                 <Bluetooth className="w-10 h-10 text-blue-500" />
+                 <Bluetooth className={`w-10 h-10 ${isConnecting ? 'text-blue-400 animate-pulse' : 'text-blue-500'}`} />
                </div>
             </div>
           </div>
@@ -657,9 +701,18 @@ const App = () => {
             </div>
           )}
 
+          {/* 连接中提示 */}
+          {isConnecting && (
+            <div className="mb-4 flex items-center gap-2 text-blue-400 animate-in fade-in slide-in-from-bottom-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm font-bold tracking-wide uppercase">Connecting...</span>
+            </div>
+          )}
+
           <button 
             onClick={connectDevice} 
-            className="w-full max-w-xs bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 px-6 rounded-md transition-all flex items-center justify-center gap-2 text-base shadow-lg"
+            disabled={isConnecting}
+            className={`w-full max-w-xs bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 px-6 rounded-md transition-all flex items-center justify-center gap-2 text-base shadow-lg ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <BluetoothConnected className="w-5 h-5" /> 
             Connect Device
@@ -816,7 +869,6 @@ const App = () => {
                 <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                   <Settings className="w-3 h-3 text-blue-400" /> General Params
                 </h3>
-                {/* 已取消标题右侧刷新按钮 */}
               </div>
               
               <div className="space-y-2">
@@ -871,7 +923,7 @@ const App = () => {
                 </div>
                 <p className="text-[8px] text-slate-500 italic">* Restart device to apply range changes.</p>
               </div>
-              {/* 为方便刷新，依然保留底部刷新按钮 */}
+              
               <button onClick={queryMainConfig} className="w-full py-2.5 text-[9px] font-black text-slate-400 bg-slate-900/40 border border-slate-700 rounded-md hover:text-blue-400 active:bg-slate-700/30 transition-all uppercase tracking-widest flex items-center justify-center gap-2">
                 <RefreshCw className={`w-3.5 h-3.5 ${isOperating ? 'animate-spin' : ''}`} /> Refresh Config
               </button>
