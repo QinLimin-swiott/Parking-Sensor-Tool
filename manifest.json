@@ -1,0 +1,17 @@
+{
+  "name": "SWIOTT Sensor Tool",
+  "short_name": "SWIOTT",
+  "description": "BLE Configuration tool for Parking Sensors",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3059/3059997.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
